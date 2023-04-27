@@ -4,18 +4,19 @@ from torch import nn
 
 class ResBlock(nn.Module):
 
-    def __init__(self, size_in, size_out, p_dropout=0.5):
+    def __init__(self, size_in, size_out, p_dropout=0.5, device='cpu'):
         super().__init__()
         self.size_in = size_in
         self.size_out = size_out
+        self.device = device
 
-        self.nonlin = nn.Linear(size_in, size_out)
-        self.lin = nn.Linear(size_out, size_out)
+        self.nonlin = nn.Linear(size_in, size_out, device=self.device)
+        self.lin = nn.Linear(size_out, size_out, device=self.device)
 
-        self.branch = nn.Linear(size_in, size_out)
+        self.branch = nn.Linear(size_in, size_out, device=self.device)
 
         self.dropout = nn.Dropout(p=p_dropout)
-        self.layernorm = nn.LayerNorm(size_in)
+        self.layernorm = nn.LayerNorm(size_out)
 
         self.relu = nn.ReLU()
 
@@ -32,11 +33,13 @@ class TiDE(nn.Module):
                  size_out: int,
                  lookback: int,
                  dropout: int = 0.5,
-                 attribs_size: int = None):
+                 attribs_size: int = None,
+                 device: str = 'cpu'):
         
         super().__init__()
 
         self.lookback = lookback
+        self.device  = device
 
         self.size_in = size_in
         self.size_out = size_out
@@ -49,21 +52,25 @@ class TiDE(nn.Module):
 
         self.in_res = ResBlock(size_in = self.size_in,
                                size_out=self.size_in,
-                               p_dropout=self.dropout)
+                               p_dropout=self.dropout,
+                               device = self.device)
         
         self.encoder = ResBlock(size_in = self.enc_in_size,
                                 size_out = self.size_out,
-                                p_dropout=self.dropout)
+                                p_dropout=self.dropout,
+                                device = self.device)
         
         self.decoder = ResBlock(size_in = self.size_out,
                                 size_out = self.size_in - self.lookback,
-                                p_dropout=self.dropout)
+                                p_dropout=self.dropout,
+                                device = self.device)
         
         self.output_res = ResBlock(size_in = self.size_in - self.lookback,
                                    size_out = self.size_in - self.lookback,
-                                   p_dropout = self.dropout)
+                                   p_dropout = self.dropout,
+                                   device = self.device)
         
-        self.y_transform = nn.Linear(self.lookback, self.size_in - self.lookback)
+        self.y_transform = nn.Linear(self.lookback, self.size_in - self.lookback, device=self.device)
 
     def forward(self, X: torch.tensor, y: torch.tensor, attribs: torch.tensor = None):
 
