@@ -32,7 +32,7 @@ class TiDE(nn.Module):
                  size_in: int,
                  size_out: int,
                  lookback: int,
-                 dropout: int = 0.5,
+                 dropout: float = 0.5,
                  attribs_size: int = None,
                  device: str = 'cpu'):
         
@@ -45,7 +45,9 @@ class TiDE(nn.Module):
         self.size_out = size_out
         self.dropout = dropout
 
-        self.enc_in_size = self.lookback + self.size_in
+        self.horizon: int = self.size_in - self.lookback
+
+        self.enc_in_size: int = self.lookback + self.size_in
         if attribs_size is not None:
             self.enc_in_size += self.attribs_size
 
@@ -61,16 +63,16 @@ class TiDE(nn.Module):
                                 device = self.device)
         
         self.decoder = ResBlock(size_in = self.size_out,
-                                size_out = self.size_in - self.lookback,
+                                size_out = self.horizon,
                                 p_dropout=self.dropout,
                                 device = self.device)
         
-        self.output_res = ResBlock(size_in = self.size_in - self.lookback,
-                                   size_out = self.size_in - self.lookback,
+        self.output_res = ResBlock(size_in = self.horizon,
+                                   size_out = self.horizon,
                                    p_dropout = self.dropout,
                                    device = self.device)
         
-        self.y_transform = nn.Linear(self.lookback, self.size_in - self.lookback, device=self.device)
+        self.y_transform = nn.Linear(self.lookback, self.horizon, device=self.device)
 
     def forward(self, X: torch.tensor, y: torch.tensor, attribs: torch.tensor = None):
 
@@ -82,7 +84,7 @@ class TiDE(nn.Module):
         Z = self.encoder(joined)
         outs = self.decoder(Z)
 
-        outs = torch.vstack((outs, transform[-self.lookback:]))
+        outs = torch.vstack((outs, transform[-self.horizon:]))
 
         outputs = self.output_res(outs)
 
